@@ -1,5 +1,8 @@
 
 import React, { useState, useEffect } from 'react';
+import { collection, getDocs } from 'firebase/firestore';
+import { db } from './firebase';
+import { Course } from './types';
 import { VideoCategory, VideoEntry } from './types';
 import Dashboard from './components/Dashboard';
 import CategoryForm from './components/CategoryForm';
@@ -10,6 +13,40 @@ import Login from './components/Login';
 import SettingsView from './components/SettingsView';
 import { v4 as uuidv4 } from 'uuid';
 
+function App() {
+  // データを保存する「箱」を用意 (最初は空っぽ)
+  const [courses, setCourses] = useState<Course[]>([]);
+
+  // 画面が開かれたら、Firebaseからデータを取りに行く
+  useEffect(() => {
+    const getData = async () => {
+      try {
+        // "courses" という名前のコレクションからデータを取得
+        const querySnapshot = await getDocs(collection(db, "courses"));
+        
+        // データを使いやすい形に整える
+        const data = querySnapshot.docs.map((doc) => ({
+          id: doc.id,
+          ...doc.data(),
+        })) as Course[];
+
+        // 箱に入れる
+        setCourses(data);
+      } catch (error) {
+        console.error("エラー:", error);
+      }
+    };
+    
+    getData(); // 実行！
+  }, []);
+
+  return (
+    // Dashboard にデータを渡す
+    <Dashboard courses={courses} />
+  );
+}
+
+export default App;
 const INITIAL_COURSES = [
   { id: 'seed-cat-1', name: 'コース全体イメージ', icon: '🗺️', desc: 'プログラムの全体像を把握します' },
   { id: 'seed-cat-2', name: 'Basic最重要ポイント', icon: '⭐', desc: '基礎の核となる重要事項の解説' },
