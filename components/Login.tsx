@@ -1,7 +1,7 @@
 
 import React, { useState } from 'react';
-import { auth, db } from '../firebase';
-import { signInWithEmailAndPassword, createUserWithEmailAndPassword, updateProfile } from 'firebase/auth';
+// Import auth helpers from local firebase.ts to avoid direct resolution issues with firebase/auth members
+import { auth, db, signInWithEmailAndPassword, createUserWithEmailAndPassword, updateProfile } from '../firebase';
 import { doc, setDoc } from 'firebase/firestore';
 
 interface LoginProps {

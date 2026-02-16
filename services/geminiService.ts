@@ -4,14 +4,16 @@ import { AIAnalysisResult } from "../types";
 
 /**
  * Analyzes a video or PDF entry for categorization and summary.
+ * Uses gemini-3-pro-preview for complex multi-modal reasoning.
  */
 export async function analyzeVideoEntry(
   categoryName: string,
   userNotes: string,
   fileData?: { data: string; mimeType: string }
 ): Promise<AIAnalysisResult> {
+  // Always initialize GoogleGenAI with { apiKey: process.env.API_KEY } directly
   const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-  const model = 'gemini-3-flash-preview';
+  const model = 'gemini-3-pro-preview';
   
   const prompt = `
     カテゴリー「${categoryName}」にアップロードされたコンテンツを分析してください。
@@ -33,7 +35,7 @@ export async function analyzeVideoEntry(
     parts.push({
       inlineData: {
         mimeType: fileData.mimeType,
-        data: fileData.data.split(',')[1] || fileData.data, // Strip prefix if exists
+        data: fileData.data.split(',')[1] || fileData.data, // Strip base64 prefix if exists
       },
     });
   }
@@ -59,6 +61,7 @@ export async function analyzeVideoEntry(
       }
     });
 
+    // Access the .text property directly instead of calling a method
     const text = response.text;
     if (!text) throw new Error("Empty response from AI");
     return JSON.parse(text.trim()) as AIAnalysisResult;
@@ -73,9 +76,10 @@ export async function analyzeVideoEntry(
 }
 
 /**
- * Generates categories and potential tags.
+ * Generates categories and potential tags using gemini-3-flash-preview.
  */
 export async function generateCategoryStructure(categoryName: string, description: string) {
+  // Use process.env.API_KEY directly as a hard requirement
   const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
   const model = 'gemini-3-flash-preview';
   const prompt = `

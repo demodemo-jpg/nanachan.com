@@ -8,8 +8,8 @@ import AdminView from './components/AdminView';
 import BottomNav from './components/BottomNav';
 import Login from './components/Login';
 import SettingsView from './components/SettingsView';
-import { auth, db } from './firebase';
-import { onAuthStateChanged } from 'firebase/auth';
+// Import auth helpers from local firebase.ts to ensure consistent module resolution
+import { auth, db, onAuthStateChanged } from './firebase';
 import { collection, onSnapshot, query, doc, getDoc, setDoc, updateDoc, deleteDoc, arrayUnion, where, getDocs, writeBatch } from 'firebase/firestore';
 
 export type AppTab = 'dashboard' | 'add' | 'students' | 'admin' | 'settings';
@@ -25,6 +25,7 @@ const App: React.FC = () => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    // onAuthStateChanged is now correctly resolved from local module re-export
     const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
       if (currentUser) {
         setUser(currentUser);

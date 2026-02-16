@@ -1,6 +1,12 @@
 
 import { initializeApp } from "firebase/app";
-import { getAuth } from "firebase/auth";
+import { 
+  getAuth, 
+  onAuthStateChanged, 
+  signInWithEmailAndPassword, 
+  createUserWithEmailAndPassword, 
+  updateProfile 
+} from "firebase/auth";
 import { getFirestore } from "firebase/firestore";
 import { getStorage } from "firebase/storage";
 
@@ -27,8 +33,17 @@ const config = {
   appId: process.env.FIREBASE_APP_ID || firebaseConfig.appId,
 };
 
+// Fix for initializeApp missing member error by ensuring correct modular SDK call
 const app = initializeApp(config);
 
 export const auth = getAuth(app);
 export const db = getFirestore(app);
 export const storage = getStorage(app);
+
+// Re-export auth functions to resolve "no exported member" errors in other files
+export { 
+  onAuthStateChanged, 
+  signInWithEmailAndPassword, 
+  createUserWithEmailAndPassword, 
+  updateProfile 
+};
