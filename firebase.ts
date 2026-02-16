@@ -5,24 +5,30 @@ import { getFirestore } from "firebase/firestore";
 import { getStorage } from "firebase/storage";
 
 /**
- * Firebase Configuration
- * 
- * 実際のプロジェクトに合わせて、以下の値をFirebaseコンソールから取得した値に
- * 置き換えてください。Vite環境では `import.meta.env` を使用することも可能です。
+ * Firebase Consoleから取得した設定値を反映しました。
  */
 const firebaseConfig = {
-  apiKey: process.env.FIREBASE_API_KEY || "YOUR_API_KEY",
-  authDomain: process.env.FIREBASE_AUTH_DOMAIN || "YOUR_PROJECT_ID.firebaseapp.com",
-  projectId: process.env.FIREBASE_PROJECT_ID || "YOUR_PROJECT_ID",
-  storageBucket: process.env.FIREBASE_STORAGE_BUCKET || "YOUR_PROJECT_ID.appspot.com",
-  messagingSenderId: process.env.FIREBASE_MESSAGING_SENDER_ID || "YOUR_SENDER_ID",
-  appId: process.env.FIREBASE_APP_ID || "YOUR_APP_ID"
+  apiKey: "AIzaSyDkfDMM2Gag8CHWuzM6QX2DuzkO3z4eE6g", 
+  authDomain: "nanachan-com.firebaseapp.com",
+  projectId: "nanachan-com",
+  storageBucket: "nanachan-com.firebasestorage.app",
+  messagingSenderId: "75961234338",
+  appId: "1:75961234338:web:146f489c53f231272238fb",
+  measurementId: "G-VD344WK6WD"
 };
 
-// Initialize Firebase
-const app = initializeApp(firebaseConfig);
+// 環境変数がある場合はそちらを優先し、ない場合は上記の設定を使用します
+const config = {
+  apiKey: process.env.FIREBASE_API_KEY || firebaseConfig.apiKey,
+  authDomain: process.env.FIREBASE_AUTH_DOMAIN || firebaseConfig.authDomain,
+  projectId: process.env.FIREBASE_PROJECT_ID || firebaseConfig.projectId,
+  storageBucket: process.env.FIREBASE_STORAGE_BUCKET || firebaseConfig.storageBucket,
+  messagingSenderId: process.env.FIREBASE_MESSAGING_SENDER_ID || firebaseConfig.messagingSenderId,
+  appId: process.env.FIREBASE_APP_ID || firebaseConfig.appId,
+};
 
-// Export services
+const app = initializeApp(config);
+
 export const auth = getAuth(app);
 export const db = getFirestore(app);
 export const storage = getStorage(app);

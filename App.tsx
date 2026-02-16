@@ -10,7 +10,7 @@ import Login from './components/Login';
 import SettingsView from './components/SettingsView';
 import { auth, db } from './firebase';
 import { onAuthStateChanged } from 'firebase/auth';
-import { collection, onSnapshot, query, doc, getDoc, setDoc, updateDoc, arrayUnion } from 'firebase/firestore';
+import { collection, onSnapshot, query, doc, getDoc, setDoc, updateDoc, deleteDoc, arrayUnion, where, getDocs, writeBatch } from 'firebase/firestore';
 
 export type AppTab = 'dashboard' | 'add' | 'students' | 'admin' | 'settings';
 
@@ -24,16 +24,15 @@ const App: React.FC = () => {
   const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
-  // 認証状態の監視
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
       if (currentUser) {
         setUser(currentUser);
-        // Firestoreからユーザー情報の取得（ロール確認など）
+        // シンプルなルール: admin@example.com または role='admin' ドキュメントがあれば管理者
         const userDoc = await getDoc(doc(db, 'users', currentUser.uid));
-        if (userDoc.exists()) {
-          setIsAdminMode(userDoc.data().role === 'admin');
-        }
+        const isExplicitAdmin = userDoc.exists() && userDoc.data().role === 'admin';
+        const isEmailAdmin = currentUser.email === 'admin@example.com';
+        setIsAdminMode(isExplicitAdmin || isEmailAdmin);
       } else {
         setUser(null);
         setIsAdminMode(false);
@@ -43,17 +42,14 @@ const App: React.FC = () => {
     return () => unsubscribe();
   }, []);
 
-  // Firestoreからのデータリアルタイム同期
   useEffect(() => {
     if (!user) return;
 
-    const qCats = query(collection(db, 'categories'));
-    const unsubCats = onSnapshot(qCats, (snapshot) => {
+    const unsubCats = onSnapshot(query(collection(db, 'categories')), (snapshot) => {
       setCategories(snapshot.docs.map(d => ({ id: d.id, ...d.data() } as VideoCategory)));
     });
 
-    const qVideos = query(collection(db, 'videos'));
-    const unsubVideos = onSnapshot(qVideos, (snapshot) => {
+    const unsubVideos = onSnapshot(query(collection(db, 'videos')), (snapshot) => {
       setVideos(snapshot.docs.map(d => ({ id: d.id, ...d.data() } as VideoEntry)));
     });
 
@@ -62,15 +58,6 @@ const App: React.FC = () => {
       unsubVideos();
     };
   }, [user]);
-
-  const handleLogin = async (role: 'user' | 'admin', name: string) => {
-    // Login.tsx側でAuth処理を行うため、ここではstate更新のきっかけのみ
-    // 実際のAdmin権限はFirestoreのドキュメントで管理
-  };
-
-  const handleLogout = () => {
-    auth.signOut();
-  };
 
   const handleUpdateName = async (newName: string) => {
     if (!user) return;
@@ -86,6 +73,22 @@ const App: React.FC = () => {
   const addVideo = async (video: VideoEntry) => {
     if (!isAdminMode) return;
     await setDoc(doc(db, 'videos', video.id), video);
+  };
+
+  const deleteCategory = async (catId: string) => {
+    if (!isAdminMode || !window.confirm("このカテゴリーと全てのコンテンツを削除しますか？")) return;
+    
+    const batch = writeBatch(db);
+    batch.delete(doc(db, 'categories', catId));
+    
+    // 関連するビデオも削除
+    const relatedVideos = videos.filter(v => v.categoryId === catId);
+    relatedVideos.forEach(v => {
+      batch.delete(doc(db, 'videos', v.id));
+    });
+    
+    await batch.commit();
+    setSelectedCategoryId(null);
   };
 
   const trackVideoView = async (videoId: string) => {
@@ -105,7 +108,7 @@ const App: React.FC = () => {
   }
 
   if (!user) {
-    return <Login onLogin={handleLogin} />;
+    return <Login onLogin={() => {}} />;
   }
 
   const selectedCategory = categories.find(c => c.id === selectedCategoryId);
@@ -113,16 +116,16 @@ const App: React.FC = () => {
   return (
     <div className="min-h-screen bg-slate-50">
       <header className="fixed top-0 left-0 right-0 h-14 bg-white/80 backdrop-blur-md z-40 px-4 flex items-center justify-between border-b border-slate-100">
-        <div className="flex items-center gap-2" onClick={() => { setSelectedCategoryId(null); setActiveTab('dashboard'); }}>
-          <div className="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center text-white font-black text-[10px] tracking-tighter cursor-pointer">AM</div>
-          <div className="flex flex-col cursor-pointer">
+        <div className="flex items-center gap-2 cursor-pointer" onClick={() => { setSelectedCategoryId(null); setActiveTab('dashboard'); }}>
+          <div className="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center text-white font-black text-[10px] tracking-tighter">AM</div>
+          <div className="flex flex-col">
             <span className="font-extrabold text-xs text-slate-800 leading-none">AI master Basic</span>
             <span className="text-[9px] text-slate-400 font-bold uppercase tracking-tight">{user.displayName || user.email}</span>
           </div>
         </div>
         <div className="flex items-center gap-2">
           {isAdminMode && (
-             <span className="text-[9px] bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded font-black">ADMIN</span>
+             <span className="text-[9px] bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded font-black uppercase">Admin</span>
           )}
           <button 
             onClick={() => { setSelectedCategoryId(null); setActiveTab('settings'); }}
@@ -142,7 +145,7 @@ const App: React.FC = () => {
             videos={videos.filter(v => v.categoryId === selectedCategoryId)}
             onBack={() => setSelectedCategoryId(null)}
             onAddVideo={addVideo}
-            onDelete={() => {}} // Firestore用削除ロジックが必要
+            onDelete={() => deleteCategory(selectedCategory.id)}
             onVideoPlay={trackVideoView}
             isAdmin={isAdminMode}
             currentUserName={user.displayName || user.email}
@@ -154,7 +157,7 @@ const App: React.FC = () => {
             facebookUrl={facebookUrl}
             onUpdateFacebookUrl={setFacebookUrl}
             onUpdateName={handleUpdateName}
-            onLogout={handleLogout}
+            onLogout={() => auth.signOut()}
           />
         ) : (activeTab === 'students' || activeTab === 'admin') ? (
           <AdminView 
@@ -175,14 +178,7 @@ const App: React.FC = () => {
         ) : isAdminMode && activeTab === 'add' ? (
           <CategoryForm onSubmit={addCategory} />
         ) : (
-          <Dashboard 
-            categories={categories} 
-            videos={videos}
-            currentUserName={user.displayName || user.email}
-            onSelectCategory={setSelectedCategoryId} 
-            onAddPrompt={() => {}}
-            isAdmin={false}
-          />
+          <Dashboard categories={categories} videos={videos} currentUserName={user.displayName || user.email} onSelectCategory={setSelectedCategoryId} onAddPrompt={() => {}} isAdmin={false} />
         )}
       </main>
 
