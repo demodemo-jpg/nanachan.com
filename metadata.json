@@ -1,0 +1,8 @@
+{
+  "name": "Copy of AI master Basic",
+  "description": "Master any skill with AI-powered video feedback, automated progress tracking, and personalized learning roadmaps.",
+  "requestFramePermissions": [
+    "camera",
+    "microphone"
+  ]
+}

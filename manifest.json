@@ -1,0 +1,24 @@
+
+{
+  "name": "AI master Basic",
+  "short_name": "AI Master",
+  "description": "AIを活用したスキル習得・進捗管理プラットフォーム",
+  "start_url": "./",
+  "display": "standalone",
+  "background_color": "#f8fafc",
+  "theme_color": "#4f46e5",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "https://cdn-icons-png.flaticon.com/512/3067/3067451.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "https://cdn-icons-png.flaticon.com/512/3067/3067451.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    }
+  ]
+}
