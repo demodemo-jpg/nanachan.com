@@ -2,8 +2,6 @@
 import { GoogleGenAI, Type } from "@google/genai";
 import { AIAnalysisResult } from "../types";
 
-const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-
 /**
  * Analyzes a video entry for categorization and summary.
  */
@@ -12,6 +10,7 @@ export async function analyzeVideoEntry(
   userNotes: string,
   base64VideoFrame?: string
 ): Promise<AIAnalysisResult> {
+  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
   const model = 'gemini-3-flash-preview';
   
   const prompt = `
@@ -25,9 +24,9 @@ export async function analyzeVideoEntry(
     - newTagsSuggested: この動画を特徴づける3つのキーワード（タグ）
   `;
 
-  const contents: any[] = [{ text: prompt }];
+  const parts: any[] = [{ text: prompt }];
   if (base64VideoFrame) {
-    contents.push({
+    parts.push({
       inlineData: {
         mimeType: 'image/jpeg',
         data: base64VideoFrame,
@@ -35,33 +34,43 @@ export async function analyzeVideoEntry(
     });
   }
 
-  const response = await ai.models.generateContent({
-    model,
-    contents: { parts: contents.map(c => typeof c === 'string' ? { text: c } : c) },
-    config: {
-      responseMimeType: "application/json",
-      responseSchema: {
-        type: Type.OBJECT,
-        properties: {
-          feedback: { type: Type.STRING },
-          score: { type: Type.NUMBER },
-          newTagsSuggested: {
-            type: Type.ARRAY,
-            items: { type: Type.STRING }
-          }
-        },
-        required: ["feedback", "score", "newTagsSuggested"]
+  try {
+    const response = await ai.models.generateContent({
+      model,
+      contents: { parts },
+      config: {
+        responseMimeType: "application/json",
+        responseSchema: {
+          type: Type.OBJECT,
+          properties: {
+            feedback: { type: Type.STRING },
+            score: { type: Type.NUMBER },
+            newTagsSuggested: {
+              type: Type.ARRAY,
+              items: { type: Type.STRING }
+            }
+          },
+          required: ["feedback", "score", "newTagsSuggested"]
+        }
       }
-    }
-  });
+    });
 
-  return JSON.parse(response.text.trim()) as AIAnalysisResult;
+    return JSON.parse(response.text.trim()) as AIAnalysisResult;
+  } catch (error) {
+    console.error("Gemini analysis failed:", error);
+    return {
+      feedback: "AIによる自動解析に失敗しました。ネットワーク状況を確認してください。",
+      score: 50,
+      newTagsSuggested: ["エラー", "未分類"]
+    };
+  }
 }
 
 /**
  * Generates categories and potential tags.
  */
 export async function generateCategoryStructure(categoryName: string, description: string) {
+  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
   const model = 'gemini-3-flash-preview';
   const prompt = `
     動画カテゴリー「${categoryName}」を管理するための分類構造を作成してください。
@@ -71,25 +80,30 @@ export async function generateCategoryStructure(categoryName: string, descriptio
     各項目は "label" というキーを持つオブジェクトです。
   `;
 
-  const response = await ai.models.generateContent({
-    model,
-    contents: prompt,
-    config: {
-      responseMimeType: "application/json",
-      responseSchema: {
-        type: Type.ARRAY,
-        items: {
-          type: Type.OBJECT,
-          properties: {
-            label: { type: Type.STRING }
-          },
-          required: ["label"]
+  try {
+    const response = await ai.models.generateContent({
+      model,
+      contents: prompt,
+      config: {
+        responseMimeType: "application/json",
+        responseSchema: {
+          type: Type.ARRAY,
+          items: {
+            type: Type.OBJECT,
+            properties: {
+              label: { type: Type.STRING }
+            },
+            required: ["label"]
+          }
         }
       }
-    }
-  });
+    });
 
-  return JSON.parse(response.text.trim());
+    return JSON.parse(response.text.trim());
+  } catch (error) {
+    console.error("Structure generation failed:", error);
+    return [{ label: "基本" }, { label: "応用" }];
+  }
 }
 
 /**
@@ -100,6 +114,7 @@ export async function getRecommendedVideo(
   allVideos: any[],
   watchedIds: string[]
 ) {
+  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
   const model = 'gemini-3-flash-preview';
   
   const watchedVideos = allVideos.filter(v => watchedIds.includes(v.id));
@@ -111,10 +126,10 @@ export async function getRecommendedVideo(
     あなたは学習コーチです。「${categoryName}」コースにおいて、受講者に次に見るべき動画を提案してください。
 
     既視聴動画リスト:
-    ${watchedVideos.map(v => `- ${v.summary}`).join('\n')}
+    ${watchedVideos.map(v => `- ${v.title}: ${v.summary}`).join('\n')}
 
     未視聴（候補）リスト:
-    ${unwatchedVideos.map(v => `ID: ${v.id}, 内容: ${v.summary}`).join('\n')}
+    ${unwatchedVideos.map(v => `ID: ${v.id}, タイトル: ${v.title}, 内容: ${v.summary}`).join('\n')}
 
     もっとも学習効果が高いと思われる動画を1つ選び、その理由を100文字以内で受講者に語りかけるように作成してください。
     
@@ -141,7 +156,10 @@ export async function getRecommendedVideo(
     });
     return JSON.parse(response.text.trim());
   } catch (e) {
-    console.error(e);
-    return null;
+    console.error("Recommendation engine error:", e);
+    return {
+      recommendedId: unwatchedVideos[0].id,
+      reason: "まずは次の動画から順に進めていきましょう。"
+    };
   }
 }
