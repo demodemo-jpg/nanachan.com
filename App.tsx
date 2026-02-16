@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { VideoCategory, VideoEntry } from './types';
+import { VideoCategory, VideoEntry } from './types.ts';
 import Dashboard from './components/Dashboard';
 import CategoryForm from './components/CategoryForm';
 import CategoryDetail from './components/CategoryDetail';
