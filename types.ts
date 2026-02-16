@@ -11,7 +11,6 @@ export interface VideoTag {
 }
 
 export interface VideoEntry {
-  docId?: string;  //
   id: string;
   categoryId: string;
   categoryName: string;
